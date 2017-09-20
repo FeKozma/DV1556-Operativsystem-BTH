@@ -130,7 +130,7 @@ int main(int argc, char ** argv)
 void* frequencyAnalysis(void *argument) 
 {
 
-	pthread_mutex_lock(&count_mutex);
+
 
 	struct Parameters *info = (struct Parameters*)argument;
 
@@ -144,6 +144,8 @@ void* frequencyAnalysis(void *argument)
 		readBytes = fileSize / nThreads;
 	else
 		readBytes = fileSize / nThreads + fileSize % nThreads;
+
+	pthread_mutex_lock(&count_mutex);
 
 	fileContent = malloc((sizeof(char) * readBytes+1));
 	strncpy(fileContent,(info->fileContent)+offset,readBytes+1);
