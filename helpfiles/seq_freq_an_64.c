@@ -45,19 +45,18 @@ size_t insert(struct FreqTable** table, char* word);	//inserts word in hashtble
 int find(struct FreqTable* table, char* word);	//find a certain entry in a table
 void* userInteraction();
 
+pthread_mutex_t count_mutex;
 
 
 
-unsigned int nThreads = 4;
+unsigned int nThreads = 8;
 struct FreqTable* result;
 
 int main(int argc, char ** argv)
 {
 	char fileName[256];
-	unsigned int nThreads = 1;
+	unsigned int nThreads = 8;
 
-	printf("Enter how many threads: \n>");
-	scanf("%d", &nThreads);
 
 	pthread_t* children;
 	children = malloc(nThreads * sizeof(pthread_t));
@@ -130,6 +129,9 @@ int main(int argc, char ** argv)
 
 void* frequencyAnalysis(void *argument) 
 {
+
+	pthread_mutex_lock(&count_mutex);
+
 	struct Parameters *info = (struct Parameters*)argument;
 
 	char *wordFromFile, *fileContent;
@@ -176,6 +178,8 @@ void* frequencyAnalysis(void *argument)
 
 	free(fileContent);
 	deleteFreqTable(table);
+
+	pthread_mutex_unlock(&count_mutex);
 
 }
 
