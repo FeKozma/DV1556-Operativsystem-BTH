@@ -55,8 +55,12 @@ struct FreqTable* result;
 int main(int argc, char ** argv)
 {
 	char fileName[256];
-	unsigned int nThreads = 8;
-
+	
+	if (argc > 1)
+	{
+		nThreads = atoi(argv[1]);
+		
+	}
 
 	pthread_t* children;
 	children = malloc(nThreads * sizeof(pthread_t));
@@ -145,7 +149,7 @@ void* frequencyAnalysis(void *argument)
 	else
 		readBytes = fileSize / nThreads + fileSize % nThreads;
 
-	pthread_mutex_lock(&count_mutex);
+
 
 	fileContent = malloc((sizeof(char) * readBytes+1));
 	strncpy(fileContent,(info->fileContent)+offset,readBytes+1);
@@ -175,13 +179,16 @@ void* frequencyAnalysis(void *argument)
 		}
 		wordFromFile = strtok_r(NULL, " ", &savePtr);
 	}
+	pthread_mutex_lock(&count_mutex);
 
 	mergeFreqTable(&result,table);
+
+	pthread_mutex_unlock(&count_mutex);
 
 	free(fileContent);
 	deleteFreqTable(table);
 
-	pthread_mutex_unlock(&count_mutex);
+
 
 }
 
