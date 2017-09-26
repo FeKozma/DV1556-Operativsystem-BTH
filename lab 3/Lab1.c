@@ -3,17 +3,18 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <stdio.h>
+#include <semaphore.h>
 
-
+#define bufSize 5
 
 int nProducer = 2;
 int nConsumer = 2;
-const int bufSize = 5;
-int buf[5];
-int bufEnd = 0; 
-int bufStart = 0;
- 
-pthread_mutex_t count_mutex;
+int buf[bufSize];
+
+sem_t mutex;
+sem_t semEnd;
+sem_t semStart;
+
 
 void* consumer(void *arg);
 void* producer(void *arg);
@@ -30,6 +31,15 @@ int main(int argc, char **argv)
 			nConsumer = atoi(argv[2]);
 		}
 	}
+
+sem_init(&semEnd, 0, 0);
+sem_init(&semStart, 0, 0);
+sem_init(&mutex, 0, 1);
+
+
+int tmpValue;
+sem_getvalue(&semEnd, &tmpValue);
+printf("%d\n", tmpValue);
 	
 	pthread_t* children;
 	children = malloc((nProducer + nConsumer) * sizeof(pthread_t));
@@ -68,21 +78,36 @@ int main(int argc, char **argv)
 void * consumer(void *arg)
 {
 	int nr = *((int*)arg);
+	int bufEnd;
+	int bufStart;
+
 	while(1==1)
 	{
-		if (bufEnd != bufStart)
+		sem_wait(&mutex);
+
+		sem_getvalue(&semEnd, &bufEnd);
+		sem_getvalue(&semStart, &bufStart);
+
+		if (bufEnd % bufSize != bufStart % bufSize)
 		{
-			pthread_mutex_lock(&count_mutex);
 
-			printf("			Consumer nr %d consumed item %d\n", nr, buf[bufStart]);
-			buf[bufStart] = 0;
+			printf("			Consumer nr %d consumed item %d\n", nr, buf[bufStart % bufSize]);
+			//buf[bufStart % bufSize] = 0;
 
 
-			bufStart++;
-			bufStart = bufStart % bufSize;
+			sem_post(&semStart);
+			
 
-			pthread_mutex_unlock(&count_mutex);	
+			//int temp;
+			//sem_getvalue(&semStart, &temp);
+			//printf("			value: %d\n", temp);
+			
+			
 		}
+	
+
+		sem_post(&mutex);
+
 		sleep((rand()%5)+1);
 	}
 }
@@ -91,20 +116,34 @@ void * producer(void *arg)
 {
 
 	int nr = *((int*)arg);
+	int bufEnd;
+	int bufStart;
 
 	while(1==1)
 	{
-		if ((bufEnd + 1) % bufSize != bufStart)
+
+		sem_wait(&mutex);
+
+		sem_getvalue(&semEnd, &bufEnd);
+		sem_getvalue(&semStart, &bufStart);
+		if ((bufEnd + 1) % bufSize != bufStart % bufSize)
 		{
-			pthread_mutex_lock(&count_mutex);
+			buf[bufEnd % bufSize] = (rand()%9000) + 1000;
+			printf("Producer nr %d produced item %d\n", nr, buf[bufEnd % bufSize]);
 
-			buf[bufEnd] = (rand()%9000) + 1000;
-			printf("Producer nr %d produced item %d\n", nr, buf[bufEnd]);
-			bufEnd++;
-			bufEnd = bufEnd % bufSize;			
+			sem_post(&semEnd);
+			
 
-			pthread_mutex_unlock(&count_mutex);	
+			//int temp;
+			//sem_getvalue(&semEnd, &temp);
+			//printf("value: %d\n", temp);
+
 		}
+		
+
+		sem_post(&mutex);
+		
+
 		sleep((rand()%5)+1);
 	}
 }
