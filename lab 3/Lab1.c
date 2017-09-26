@@ -10,7 +10,8 @@ int nProducer = 2;
 int nConsumer = 2;
 const int bufSize = 5;
 int buf[5];
-int bufPos = 0; 
+int bufEnd = 0; 
+int bufStart = 0;
  
 pthread_mutex_t count_mutex;
 
@@ -69,12 +70,16 @@ void * consumer(void *arg)
 	int nr = *((int*)arg);
 	while(1==1)
 	{
-		if (bufPos != 0)
+		if (bufEnd != bufStart)
 		{
 			pthread_mutex_lock(&count_mutex);
-			bufPos--;
-			printf("			Consumer nr %d consumed item %d\n", nr, buf[bufPos]);
-			buf[bufPos] = 0;
+
+			printf("			Consumer nr %d consumed item %d\n", nr, buf[bufStart]);
+			buf[bufStart] = 0;
+
+
+			bufStart++;
+			bufStart = bufStart % bufSize;
 
 			pthread_mutex_unlock(&count_mutex);	
 		}
@@ -89,12 +94,14 @@ void * producer(void *arg)
 
 	while(1==1)
 	{
-		if (bufPos != 5)
+		if ((bufEnd + 1) % bufSize != bufStart)
 		{
 			pthread_mutex_lock(&count_mutex);
-			buf[bufPos] = (rand()%9000) + 1000;
-			printf("Producer nr %d produced item %d\n", nr, buf[bufPos]);
-			bufPos++;
+
+			buf[bufEnd] = (rand()%9000) + 1000;
+			printf("Producer nr %d produced item %d\n", nr, buf[bufEnd]);
+			bufEnd++;
+			bufEnd = bufEnd % bufSize;			
 
 			pthread_mutex_unlock(&count_mutex);	
 		}
