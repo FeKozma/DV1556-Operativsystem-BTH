@@ -15,7 +15,6 @@ sem_t mutex;
 sem_t semEnd;
 sem_t semStart;
 
-
 void* consumer(void *arg);
 void* producer(void *arg);
 
@@ -32,15 +31,10 @@ int main(int argc, char **argv)
 		}
 	}
 
-sem_init(&semEnd, 0, 0);
-sem_init(&semStart, 0, 0);
-sem_init(&mutex, 0, 1);
+	sem_init(&semEnd, 0, 0);
+	sem_init(&semStart, 0, 0);
+	sem_init(&mutex, 0, 1);
 
-
-int tmpValue;
-sem_getvalue(&semEnd, &tmpValue);
-printf("%d\n", tmpValue);
-	
 	pthread_t* children;
 	children = malloc((nProducer + nConsumer) * sizeof(pthread_t));
 	int consumerNr[nConsumer];
@@ -90,21 +84,10 @@ void * consumer(void *arg)
 
 		if (bufEnd % bufSize != bufStart % bufSize)
 		{
-
 			printf("			Consumer nr %d consumed item %d\n", nr, buf[bufStart % bufSize]);
-			//buf[bufStart % bufSize] = 0;
-
 
 			sem_post(&semStart);
-			
-
-			//int temp;
-			//sem_getvalue(&semStart, &temp);
-			//printf("			value: %d\n", temp);
-			
-			
 		}
-	
 
 		sem_post(&mutex);
 
@@ -114,14 +97,12 @@ void * consumer(void *arg)
 
 void * producer(void *arg)
 {
-
 	int nr = *((int*)arg);
 	int bufEnd;
 	int bufStart;
 
 	while(1==1)
 	{
-
 		sem_wait(&mutex);
 
 		sem_getvalue(&semEnd, &bufEnd);
@@ -132,17 +113,9 @@ void * producer(void *arg)
 			printf("Producer nr %d produced item %d\n", nr, buf[bufEnd % bufSize]);
 
 			sem_post(&semEnd);
-			
-
-			//int temp;
-			//sem_getvalue(&semEnd, &temp);
-			//printf("value: %d\n", temp);
-
 		}
-		
 
 		sem_post(&mutex);
-		
 
 		sleep((rand()%5)+1);
 	}
