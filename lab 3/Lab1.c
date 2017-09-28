@@ -5,15 +5,18 @@
 #include <stdio.h>
 #include <semaphore.h>
 
-#define bufSize 5
+const int bufSize = 5;
+int buf[5];
 
 int nProducer = 2;
 int nConsumer = 2;
-int buf[bufSize];
 
-sem_t mutex;
-sem_t semEnd;
-sem_t semStart;
+typedef sem_t semaphore;
+semaphore mutex;
+semaphore empty;
+semaphore full;
+
+int count = 0;
 
 void* consumer(void *arg);
 void* producer(void *arg);
@@ -21,6 +24,10 @@ void* producer(void *arg);
 int main(int argc, char **argv)
 {
 	srand(time(NULL));
+
+	sem_init(&mutex, 0, 1);
+	sem_init(&empty, 0, bufSize);
+	sem_init(&full, 0, 0);
 
 	if (argc > 1)
 	{
@@ -30,10 +37,6 @@ int main(int argc, char **argv)
 			nConsumer = atoi(argv[2]);
 		}
 	}
-
-	sem_init(&semEnd, 0, 0);
-	sem_init(&semStart, 0, 0);
-	sem_init(&mutex, 0, 1);
 
 	pthread_t* children;
 	children = malloc((nProducer + nConsumer) * sizeof(pthread_t));
@@ -69,53 +72,61 @@ int main(int argc, char **argv)
 	return 0;
 }
 
+int remove_item() {
+	int item = buf[0];
+	for (int i = 1; i < count; ++i) {
+		buf[i - 1] = buf[i];
+	}
+	count--;
+	return item;
+}
+
 void * consumer(void *arg)
 {
-	int nr = *((int*)arg);
-	int bufEnd;
-	int bufStart;
+	int id = *((int*)arg);
+	int item;
 
-	while(1==1)
+	while(1)
 	{
+		sem_wait(&full);
 		sem_wait(&mutex);
 
-		sem_getvalue(&semEnd, &bufEnd);
-		sem_getvalue(&semStart, &bufStart);
-
-		if (bufEnd % bufSize != bufStart % bufSize)
-		{
-			printf("			Consumer nr %d consumed item %d\n", nr, buf[bufStart % bufSize]);
-
-			sem_post(&semStart);
-		}
+		item = remove_item();
+		printf("\t\t\tConsumer nr %d consumed item %d\n", id, item);
 
 		sem_post(&mutex);
+		sem_post(&empty);
 
 		sleep((rand()%5)+1);
 	}
 }
 
+int produce_item() {
+	return (rand()%9000) + 1000;
+}
+
+void insert_item(int item) {
+	buf[count] = item;
+	count++;
+}
+
 void * producer(void *arg)
 {
 	int nr = *((int*)arg);
-	int bufEnd;
-	int bufStart;
+	int item;
 
-	while(1==1)
+	while(1)
 	{
+		item = produce_item();
+
+		sem_wait(&empty);
 		sem_wait(&mutex);
 
-		sem_getvalue(&semEnd, &bufEnd);
-		sem_getvalue(&semStart, &bufStart);
-		if ((bufEnd + 1) % bufSize != bufStart % bufSize)
-		{
-			buf[bufEnd % bufSize] = (rand()%9000) + 1000;
-			printf("Producer nr %d produced item %d\n", nr, buf[bufEnd % bufSize]);
-
-			sem_post(&semEnd);
-		}
+		insert_item(item);
+		printf("Producer nr %d produced item %d\n", nr, item);
 
 		sem_post(&mutex);
+		sem_post(&full);
 
 		sleep((rand()%5)+1);
 	}
