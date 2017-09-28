@@ -1,34 +1,34 @@
-#include <time.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <semaphore.h>
 
-const int bufSize = 5;
-int buf[5];
+#define bufSize 5 // Buffer max size.
 
-int nProducer = 2;
-int nConsumer = 2;
+int buf[bufSize]; // Keeps track of the items.
+int nProducer = 2; // Default amount of producers.
+int nConsumer = 2; // Default amount of consumers.
+int count = 0; // Keep track of the current item count.
 
 typedef sem_t semaphore;
-semaphore mutex;
-semaphore empty;
-semaphore full;
+semaphore mutex; // Lock threads.
+semaphore empty; // Lock thread if full.
+semaphore full; // Lock thread if empty.
 
-int count = 0;
-
-void* consumer(void *arg);
 void* producer(void *arg);
+void* consumer(void *arg);
 
 int main(int argc, char **argv)
 {
+	// Initialize random and semaphones...
 	srand(time(NULL));
 
 	sem_init(&mutex, 0, 1);
 	sem_init(&empty, 0, bufSize);
 	sem_init(&full, 0, 0);
 
+	// If you entered an argument, set the new producer and consumer count.
 	if (argc > 1)
 	{
 		nProducer = atoi(argv[1]);
@@ -38,6 +38,7 @@ int main(int argc, char **argv)
 		}
 	}
 
+	// Allocate memory and initialize threads.
 	pthread_t* children;
 	children = malloc((nProducer + nConsumer) * sizeof(pthread_t));
 	int consumerNr[nConsumer];
@@ -47,18 +48,19 @@ int main(int argc, char **argv)
 	{
 		producerNr[i] = i;
 
-		pthread_create(&(children[i]),
+		pthread_create(
+			&(children[i]),
 			NULL,
 			producer,
 			&producerNr[i]);
-
 	}
 
 	for (int i = 0; i < nConsumer; i++)
 	{
 		consumerNr[i] = i;
 
-		pthread_create(&(children[i]),
+		pthread_create(
+			&(children[i]),
 			NULL,
 			consumer,
 			&consumerNr[i]);
@@ -72,6 +74,45 @@ int main(int argc, char **argv)
 	return 0;
 }
 
+// Will produce an item and return it.
+int produce_item() {
+	return (rand()%9000) + 1000;
+}
+
+// Will insert an item into the buffer.
+void insert_item(int item) {
+	buf[count] = item;
+	count++;
+}
+
+// Producer thread, produces items.
+void* producer(void *arg)
+{
+	int id = *((int*)arg);
+	int item;
+
+	while(1)
+	{
+		item = produce_item();
+
+		// You don't want to have sem_wait(&mutex) before sem_wait(&empty) because
+		// then if the buffer is empty, it will lock mutex (and therefore locking the producer threads).
+		// It will then wait for an item, which will never happen because mutex is locked so
+		// the producer thread is waiting for it to be unlocked.
+		sem_wait(&empty);
+		sem_wait(&mutex);
+
+		insert_item(item);
+		printf("Producer nr %d produced item %d\n", id, item);
+
+		sem_post(&mutex);
+		sem_post(&full);
+
+		sleep((rand()%5)+1);
+	}
+}
+
+// Will remove an item from the buffer, then return the removed item.
 int remove_item() {
 	int item = buf[0];
 	for (int i = 1; i < count; ++i) {
@@ -81,7 +122,8 @@ int remove_item() {
 	return item;
 }
 
-void * consumer(void *arg)
+// Consumer thread, consumes items.
+void* consumer(void *arg)
 {
 	int id = *((int*)arg);
 	int item;
@@ -96,37 +138,6 @@ void * consumer(void *arg)
 
 		sem_post(&mutex);
 		sem_post(&empty);
-
-		sleep((rand()%5)+1);
-	}
-}
-
-int produce_item() {
-	return (rand()%9000) + 1000;
-}
-
-void insert_item(int item) {
-	buf[count] = item;
-	count++;
-}
-
-void * producer(void *arg)
-{
-	int nr = *((int*)arg);
-	int item;
-
-	while(1)
-	{
-		item = produce_item();
-
-		sem_wait(&empty);
-		sem_wait(&mutex);
-
-		insert_item(item);
-		printf("Producer nr %d produced item %d\n", nr, item);
-
-		sem_post(&mutex);
-		sem_post(&full);
 
 		sleep((rand()%5)+1);
 	}
