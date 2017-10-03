@@ -11,10 +11,9 @@ int nProducer = 2; // Default amount of producers.
 int nConsumer = 2; // Default amount of consumers.
 int count = 0; // Keep track of the current item count.
 
-typedef sem_t semaphore;
-semaphore mutex; // Lock threads.
-semaphore empty; // Lock thread if full.
-semaphore full; // Lock thread if empty.
+sem_t mutex; // Lock threads.
+sem_t empty; // Lock thread if full.
+sem_t full; // Lock thread if empty.
 
 void* producer(void *arg);
 void* consumer(void *arg);
